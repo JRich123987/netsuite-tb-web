@@ -1,5 +1,4 @@
 import { useState } from "react";
-import * as XLSX from "xlsx";
 
 export default function Home() {
   const [file, setFile] = useState(null);
@@ -12,17 +11,20 @@ export default function Home() {
   };
 
   const handleProcess = async () => {
+    if (!file) return;
+    const XLSX = await import("xlsx"); // dynamic import
+
     const data = await file.arrayBuffer();
     const wb = XLSX.read(data);
     const sheet = wb.Sheets[wb.SheetNames[0]];
     const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-    const headerIdx = json.findIndex(r => r.includes("Account"));
+    const headerIdx = json.findIndex((r) => r.includes("Account"));
     const headers = json[headerIdx];
     const body = json.slice(headerIdx + 1);
 
     let current = "";
-    const rows = body.map(row => {
+    const rows = body.map((row) => {
       if (row[0]) current = row[0];
       row[0] = current;
 
