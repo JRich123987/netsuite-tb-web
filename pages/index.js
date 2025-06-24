@@ -1,3 +1,4 @@
+"use client";
 import { useState } from "react";
 
 export default function Home() {
@@ -6,50 +7,69 @@ export default function Home() {
 
   const handleChange = (e) => {
     const f = e.target.files[0];
-    if (!f.name.endsWith(".xlsx")) return alert("Upload .xlsx only");
-    setFile(f);
+    if (f && f.name.endsWith(".xlsx")) {
+      setFile(f);
+    } else {
+      alert("Please upload a valid .xlsx file");
+    }
   };
 
   const handleProcess = async () => {
     if (!file) return;
-    const XLSX = await import("xlsx"); // dynamic import
+    const XLSX = await import("xlsx");
 
-    const data = await file.arrayBuffer();
-    const wb = XLSX.read(data);
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    try {
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data);
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-    const headerIdx = json.findIndex((r) => r.includes("Account"));
-    const headers = json[headerIdx];
-    const body = json.slice(headerIdx + 1);
+      const headerIdx = json.findIndex((r) => r.includes("Account"));
+      if (headerIdx === -1) return alert("Couldn't find 'Account' header");
 
-    let current = "";
-    const rows = body.map((row) => {
-      if (row[0]) current = row[0];
-      row[0] = current;
+      const headers = json[headerIdx];
+      const body = json.slice(headerIdx + 1);
 
-      const debit = parseFloat(row[headers.indexOf("Debit")] || 0);
-      const credit = parseFloat(row[headers.indexOf("Credit")] || 0);
-      row[headers.length] = debit - credit;
-      return row;
-    });
+      let current = "";
+      const rows = body.map((row) => {
+        if (row[0]) current = row[0];
+        row[0] = current;
 
-    headers.push("Total");
-    const newSheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-    const newWb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(newWb, newSheet, wb.SheetNames[0]);
+        const debit = parseFloat(row[headers.indexOf("Debit")] || 0);
+        const credit = parseFloat(row[headers.indexOf("Credit")] || 0);
+        row[headers.length] = debit - credit;
 
-    const blob = XLSX.write(newWb, { bookType: "xlsx", type: "blob" });
-    const downloadUrl = URL.createObjectURL(blob);
-    setUrl(downloadUrl);
+        return row;
+      });
+
+      headers.push("Total");
+      const newSheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      const newWb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(newWb, newSheet, wb.SheetNames[0]);
+
+      const blob = XLSX.write(newWb, { bookType: "xlsx", type: "blob" });
+      const url = URL.createObjectURL(blob);
+      setUrl(url);
+    } catch (err) {
+      alert("Error processing file");
+      console.error(err);
+    }
   };
 
   return (
-    <main style={{ padding: 40, fontFamily: 'sans-serif' }}>
-      <h1>NetSuite TB Formatter</h1>
+    <main style={{ padding: 40, fontFamily: "sans-serif" }}>
+      <h1 style={{ fontSize: "28px", fontWeight: "bold" }}>NetSuite TB Formatter</h1>
       <input type="file" accept=".xlsx" onChange={handleChange} />
-      <button onClick={handleProcess} disabled={!file}>Process File</button>
-      {url && <a href={url} download="formatted.xlsx">Download Result</a>}
+      <button onClick={handleProcess} disabled={!file} style={{ marginLeft: 10 }}>
+        Process File
+      </button>
+      {url && (
+        <div style={{ marginTop: 20 }}>
+          <a href={url} download="formatted.xlsx">
+            Download Result
+          </a>
+        </div>
+      )}
     </main>
   );
 }
