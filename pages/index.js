@@ -25,7 +25,7 @@ export default function Home() {
       const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
       const headerIdx = json.findIndex((r) => r.includes("Account"));
-      if (headerIdx === -1) return alert("Couldn't find 'Account' header");
+      if (headerIdx === -1) throw new Error("Header row with 'Account' not found");
 
       const headers = json[headerIdx];
       const body = json.slice(headerIdx + 1);
@@ -48,11 +48,11 @@ export default function Home() {
       XLSX.utils.book_append_sheet(newWb, newSheet, wb.SheetNames[0]);
 
       const blob = XLSX.write(newWb, { bookType: "xlsx", type: "blob" });
-      const url = URL.createObjectURL(blob);
-      setUrl(url);
+      const downloadUrl = URL.createObjectURL(blob);
+      setUrl(downloadUrl);
     } catch (err) {
       alert("Error processing file");
-      console.error(err);
+      console.error("❌ Processing error:", err);
     }
   };
 
