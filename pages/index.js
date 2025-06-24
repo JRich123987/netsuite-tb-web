@@ -14,47 +14,49 @@ export default function Home() {
     }
   };
 
-  const handleProcess = async () => {
-    if (!file) return;
-    const XLSX = await import("xlsx");
+const handleProcess = async () => {
+  if (!file) return;
+  const XLSX = await import("xlsx");
 
-    try {
-      const data = await file.arrayBuffer();
-      const wb = XLSX.read(data);
-      const sheet = wb.Sheets[wb.SheetNames[0]];
-      const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+  try {
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data);
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-      const headerIdx = json.findIndex((r) => r.includes("Account"));
-      if (headerIdx === -1) throw new Error("Header row with 'Account' not found");
+    const headerIdx = json.findIndex((r) => r.includes("Account"));
+    if (headerIdx === -1) throw new Error("Header row with 'Account' not found");
 
-      const headers = json[headerIdx];
-      const body = json.slice(headerIdx + 1);
+    const headers = json[headerIdx];
+    const body = json.slice(headerIdx + 1);
 
-      let current = "";
-      const rows = body.map((row) => {
-        if (row[0]) current = row[0];
-        row[0] = current;
+    let current = "";
+    const rows = body.map((row) => {
+      if (row[0]) current = row[0];
+      row[0] = current;
 
-        const debit = parseFloat(row[headers.indexOf("Debit")] || 0);
-        const credit = parseFloat(row[headers.indexOf("Credit")] || 0);
-        row[headers.length] = debit - credit;
+      const debit = parseFloat(row[headers.indexOf("Debit")] || 0);
+      const credit = parseFloat(row[headers.indexOf("Credit")] || 0);
+      row[headers.length] = debit - credit;
+      return row;
+    });
 
-        return row;
-      });
+    headers.push("Total");
+    const newSheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const newWb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(newWb, newSheet, wb.SheetNames[0]);
 
-      headers.push("Total");
-      const newSheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-      const newWb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(newWb, newSheet, wb.SheetNames[0]);
+    // ✅ Fix: write to array and create blob manually
+    const uint8 = XLSX.write(newWb, { type: "array", bookType: "xlsx" });
+    const blob = new Blob([uint8], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    setUrl(url);
+  } catch (err) {
+    alert("Error processing file");
+    console.error("❌ Processing error:", err);
+  }
+};
 
-      const blob = XLSX.write(newWb, { bookType: "xlsx", type: "blob" });
-      const downloadUrl = URL.createObjectURL(blob);
-      setUrl(downloadUrl);
-    } catch (err) {
-      alert("Error processing file");
-      console.error("❌ Processing error:", err);
-    }
-  };
 
   return (
     <main style={{ padding: 40, fontFamily: "sans-serif" }}>
